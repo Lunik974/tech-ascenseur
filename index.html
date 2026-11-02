@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TECH ASCENSEUR - Carnet de maintenance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0b132b; color: #f1f5f9; font-family: system-ui, -apple-system, sans-serif; }
+    </style>
+</head>
+<body class="p-4 max-w-md mx-auto pb-36 min-h-screen">
+
+    <!-- HEADER -->
+    <header class="flex justify-between items-center mb-4 pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2.5 rounded-xl text-white shadow-lg">
+                <i class="fa-solid fa-elevator text-xl"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="font-bold text-lg tracking-wide">TECH ASCENSEUR</h1>
+                    <span class="bg-blue-900/80 text-blue-300 text-[10px] px-1.5 py-0.5 rounded font-bold border border-blue-700/50">PRO</span>
+                </div>
+                <p class="text-xs text-slate-400">Carnet de maintenance local</p>
+            </div>
+        </div>
+        <button type="button" onclick="toggleView('form')" id="btn-toggle" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 shadow-lg active:scale-95 cursor-pointer">
+            <i class="fa-solid fa-plus text-xs"></i> <span>Visite</span>
+        </button>
+    </header>
+
+    <!-- PAGE 1 : DASHBOARD / PARC & SUIVI -->
+    <div id="page-dashboard">
+        <!-- BARRE DE RECHERCHE -->
+        <div class="relative mb-3">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+            <input type="text" id="search-input" oninput="renderDashboard()" placeholder="N° d'appareil ou nom de résidence..." class="w-full bg-slate-900/90 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500">
+        </div>
+
+        <!-- FILTRES D'ÉTAT (BADGES) -->
+        <div class="flex gap-2 mb-4 overflow-x-auto pb-1 text-xs">
+            <button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold cursor-pointer whitespace-nowrap">Tous</button>
+            <button type="button" onclick="setFilter('late')" id="filter-late" class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer whitespace-nowrap">En retard <span id="count-late" class="ml-1 px-1.5 py-0.2 bg-red-950 text-red-400 rounded-full text-[10px]">0</span></button>
+            <button type="button" onclick="setFilter('warning')" id="filter-warning" class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer whitespace-nowrap">Échéance proche <span id="count-warning" class="ml-1 px-1.5 py-0.2 bg-amber-950 text-amber-400 rounded-full text-[10px]">0</span></button>
+            <button type="button" onclick="setFilter('ok')" id="filter-ok" class="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer whitespace-nowrap">À jour <span id="count-ok" class="ml-1 px-1.5 py-0.2 bg-emerald-950 text-emerald-400 rounded-full text-[10px]">0</span></button>
+        </div>
+
+        <div class="flex justify-between items-center mb-3 px-1">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Appareils par niveau d'urgence</span>
+            <span class="text-[11px] text-slate-500">Délai max : 6 sem. (42j)</span>
+        </div>
+
+        <!-- LISTE DES CARTES D'APPAREILS -->
+        <div id="devices-list" class="space-y-3"></div>
+    </div>
+
+    <!-- PAGE 2 : FORMULAIRE DE VISITE -->
+    <div id="page-form" class="hidden">
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <h2 class="font-bold text-base mb-4 text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-clipboard-user text-blue-500"></i> Nouvelle Intervention
+            </h2>
+
+            <form id="visit-form" onsubmit="saveVisit(event)" class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">N° Appareil *</label>
+                        <input type="text" id="appareil" required placeholder="Ex: 2053" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">Nom Résidence</label>
+                        <input type="text" id="nomResidence" placeholder="Ex: Carré Azalée" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">Type de Résidence / Organisme *</label>
+                    <select id="residence" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                        <option value="Privée">Privée</option>
+                        <option value="SIDR">SIDR</option>
+                        <option value="SHLMR">SHLMR (Mensuel strict)</option>
+                        <option value="Bâtiment public">Bâtiment public</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">Date de l'intervention *</label>
+                    <input type="date" id="dateVisite" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">Heure début</label>
+                        <input type="time" id="heureDebut" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wider">Heure fin</label>
+                        <input type="time" id="heureFin" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Type(s) d'intervention * (Multi-sélection)</label>
+                    <div class="grid grid-cols-1 gap-2 bg-slate-950/50 p-3 rounded-xl border border-slate-800/80">
+                        <label class="flex items-center gap-2.5 text-sm text-slate-300 cursor-pointer">
+                            <input type="checkbox" value="Visite de maintenance" class="type-cb trigger-count w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600"> Visite de maintenance
+                        </label>
+                        <label class="flex items-center gap-2.5 text-sm text-slate-300 cursor-pointer">
+                            <input type="checkbox" value="Contrôle annuel" class="type-cb trigger-count w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600"> Contrôle annuel
+                        </label>
+                        <label class="flex items-center gap-2.5 text-sm text-slate-300 cursor-pointer">
+                            <input type="checkbox" value="Dépannage à l'arrêt" class="type-cb w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600"> Dépannage à l'arrêt
+                        </label>
+                        <label class="flex items-center gap-2.5 text-sm text-slate-300 cursor-pointer">
+                            <input type="checkbox" value="Remise en service" class="type-cb w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600"> Remise en service
+                        </label>
+                        <label class="flex items-center gap-2.5 text-sm text-slate-300 cursor-pointer">
+                            <input type="checkbox" value="Réparation / Travaux" class="type-cb w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600"> Réparation / Travaux
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="toggleView('dashboard')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-sm transition-colors cursor-pointer">Annuler</button>
+                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors cursor-pointer">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PAGE 3 : DONNÉES / GESTION LOCALE & SYNCHRO GOOGLE SHEETS -->
+    <div id="page-data" class="hidden">
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+            <h2 class="font-bold text-base text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-database text-blue-500"></i> Gestion des données
+            </h2>
+            <p class="text-xs text-slate-400">Synchronisez vers Google Sheets ou gérez vos fichiers de sauvegarde locaux.</p>
+            
+            <div class="space-y-3 pt-2">
+                <!-- BOUTON DE SYNCHRONISATION GOOGLE SHEETS -->
+                <button type="button" onclick="syncToGoogleSheets()" id="btn-sync" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl text-sm shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-colors">
+                    <i class="fa-solid fa-file-excel text-sm"></i> <span>Synchroniser avec Google Sheets</span>
+                </button>
+
+                <div id="sync-status" class="hidden text-center text-xs p-2 rounded-xl border"></div>
+
+                <hr class="border-slate-800 my-2">
+
+                <button type="button" onclick="exportData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2.5 rounded-xl text-sm border border-slate-700 flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-download text-xs text-blue-400"></i> Exporter mes données (JSON)
+                </button>
+
+                <label class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2.5 rounded-xl text-sm border border-slate-700 flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-upload text-xs text-emerald-400"></i> Importer une sauvegarde (JSON)
+                    <input type="file" id="import-file" accept=".json" onchange="importData(event)" class="hidden">
+                </label>
+
+                <button type="button" onclick="clearData()" class="w-full bg-red-950/60 hover:bg-red-900/80 text-red-400 font-semibold py-2.5 rounded-xl text-sm border border-red-800/50 flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-trash text-xs"></i> Vider l'historique local
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALE D'HISTORIQUE DÉTAILLÉ AVEC BOUTON SUPPRIMER -->
+    <div id="history-modal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            <div class="flex justify-between items-center p-4 border-b border-slate-800">
+                <h3 id="modal-title" class="font-bold text-base text-white">Historique de l'appareil</h3>
+                <button type="button" onclick="closeHistoryModal()" class="text-slate-400 hover:text-white p-1 cursor-pointer"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="modal-content" class="p-4 overflow-y-auto space-y-3 flex-1 text-xs"></div>
+            <div class="p-4 border-t border-slate-800 bg-slate-950/50 flex justify-end">
+                <button type="button" onclick="closeHistoryModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-xl text-xs cursor-pointer">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MENTION DE PROPRIÉTÉ & CRÉDITS -->
+    <footer class="mt-8 mb-4 text-center text-slate-500 text-[11px] space-y-1">
+        <p class="font-medium text-slate-400">TECHNICIEN ASCENSEUR PRO © 2026</p>
+        <p>Développé par <strong class="text-blue-400 font-semibold">Sébastien Valentin</strong> — Tous droits réservés</p>
+    </footer>
+
+    <!-- BARRE DE NAVIGATION BASSE -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-6 py-2.5 max-w-md mx-auto flex justify-between items-center z-50">
+        <button type="button" onclick="toggleView('dashboard')" id="nav-dash" class="flex flex-col items-center gap-1 text-blue-500 cursor-pointer">
+            <i class="fa-solid fa-list-check text-base"></i>
+            <span class="text-[10px] font-semibold">Parc & Suivi</span>
+        </button>
+        <button type="button" onclick="toggleView('form')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 w-11 h-11 rounded-full flex items-center justify-center shadow-lg -mt-5 border-4 border-slate-950 transition-transform active:scale-95 cursor-pointer">
+            <i class="fa-solid fa-plus text-base font-bold"></i>
+        </button>
+        <button type="button" onclick="toggleView('data')" id="nav-data" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer">
+            <i class="fa-solid fa-box-archive text-base"></i>
+            <span class="text-[10px] font-semibold">Données</span>
+        </button>
+    </nav>
+
+    <script>
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyuhHnYTd6A1tkBDq3GxfPePj4_M5x0Pi0RoRGtZ9nj57urBbL1ILdiqaErcXpbVYoU/exec";
+
+        let visits = [];
+        try {
+            visits = JSON.parse(localStorage.getItem('elevator_visits')) || [];
+        } catch (e) {
+            visits = [];
+        }
+
+        let currentFilter = 'all';
+        let currentOpenDeviceCode = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const dateInput = document.getElementById('dateVisite');
+            if(dateInput) dateInput.valueAsDate = new Date();
+            renderDashboard();
+        });
+
+        function toggleView(view) {
+            const pageDash = document.getElementById('page-dashboard');
+            const pageForm = document.getElementById('page-form');
+            const pageData = document.getElementById('page-data');
+            const btnToggle = document.getElementById('btn-toggle');
+            const navDash = document.getElementById('nav-dash');
+            const navData = document.getElementById('nav-data');
+
+            if (!pageDash || !pageForm || !pageData) return;
+
+            pageDash.classList.add('hidden');
+            pageForm.classList.add('hidden');
+            pageData.classList.add('hidden');
+
+            if (navDash) navDash.className = "flex flex-col items-center gap-1 text-slate-400 cursor-pointer";
+            if (navData) navData.className = "flex flex-col items-center gap-1 text-slate-400 cursor-pointer";
+
+            if (view === 'form') {
+                pageForm.classList.remove('hidden');
+                if (btnToggle) {
+                    btnToggle.innerHTML = '<i class="fa-solid fa-arrow-left text-xs"></i> <span>Retour</span>';
+                    btnToggle.className = "bg-slate-800 text-slate-200 font-bold px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer";
+                }
+            } else if (view === 'data') {
+                pageData.classList.remove('hidden');
+                if (navData) navData.className = "flex flex-col items-center gap-1 text-blue-500 cursor-pointer";
+                if (btnToggle) {
+                    btnToggle.innerHTML = '<i class="fa-solid fa-plus text-xs"></i> <span>Visite</span>';
+                    btnToggle.className = "bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 shadow-lg cursor-pointer";
+                }
+            } else {
+                pageDash.classList.remove('hidden');
+                if (navDash) navDash.className = "flex flex-col items-center gap-1 text-blue-500 cursor-pointer";
+                if (btnToggle) {
+                    btnToggle.innerHTML = '<i class="fa-solid fa-plus text-xs"></i> <span>Visite</span>';
+                    btnToggle.className = "bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3.5 py-2 rounded-xl text-sm flex items-center gap-2 shadow-lg cursor-pointer";
+                }
+                renderDashboard();
+            }
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            ['all', 'ok', 'warning', 'late'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (btn) {
+                    if (f === filter) {
+                        btn.className = "px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold cursor-pointer whitespace-nowrap";
+                    } else {
+                        btn.className = "px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 cursor-pointer whitespace-nowrap";
+                    }
+                }
+            });
+            renderDashboard();
+        }
+
+        function quickUpdate(code, residence, nomResidence) {
+            toggleView('form');
+            const appInput = document.getElementById('appareil');
+            const resSelect = document.getElementById('residence');
+            const nomResInput = document.getElementById('nomResidence');
+
+            if (appInput) appInput.value = code;
+            if (resSelect) resSelect.value = residence;
+            if (nomResInput) {
+                nomResInput.value = (nomResidence && nomResidence !== 'undefined') ? nomResidence : '';
+            }
+        }
+
+        function openHistory(code) {
+            currentOpenDeviceCode = code;
+            const modal = document.getElementById('history-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalContent = document.getElementById('modal-content');
+            if (!modal || !modalContent) return;
+
+            modalTitle.innerText = `Historique complet - Appareil ${code}`;
+            modalContent.innerHTML = '';
+
+            const deviceVisits = visits.filter(v => v.appareil === code);
+
+            if (deviceVisits.length === 0) {
+                modalContent.innerHTML = '<p class="text-slate-400 text-center py-4">Aucune intervention trouvée.</p>';
+            } else {
+                deviceVisits.forEach((v) => {
+                    const item = document.createElement('div');
+                    item.className = "bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2 relative";
+                    
+                    const formattedDate = new Date(v.dateVisite).toLocaleDateString('fr-FR', {
+                        weekday: 'short',
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    });
+
+                    const resetBadge = v.resetsCountdown 
+                        ? `<span class="bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 text-[10px] px-2 py-0.5 rounded-full font-bold">Réinitialise le décompte</span>`
+                        : `<span class="bg-slate-800 text-slate-400 border border-slate-700 text-[10px] px-2 py-0.5 rounded-full">Sans réinitialisation</span>`;
+
+                    const timeInfo = (v.heureDebut || v.heureFin) 
+                        ? `<p class="text-[11px] text-slate-400"><i class="fa-regular fa-clock mr-1 text-slate-500"></i> Horaires : <strong class="text-slate-200">${v.heureDebut || '--:--'}</strong> à <strong class="text-slate-200">${v.heureFin || '--:--'}</strong></p>` 
+                        : '';
+
+                    const actionsBadges = v.types.map(t => `<span class="bg-blue-950/80 text-blue-300 border border-blue-800/50 text-[11px] px-2 py-0.5 rounded-md font-medium"><i class="fa-solid fa-wrench text-[9px] mr-1"></i>${t}</span>`).join(' ');
+
+                    item.innerHTML = `
+                        <div class="flex justify-between items-start border-b border-slate-800/60 pb-2">
+                            <div>
+                                <span class="font-bold text-slate-100 capitalize">${formattedDate}</span>
+                                ${v.nomResidence ? `<p class="text-[11px] text-slate-400">${v.nomResidence} (${v.residence})</p>` : `<p class="text-[11px] text-slate-400">${v.residence}</p>`}
+                            </div>
+                            <div class="flex items-center gap-2">
+                                ${resetBadge}
+                                <button type="button" onclick="deleteVisit(${v.id})" class="bg-red-950/80 hover:bg-red-900 text-red-400 border border-red-800/60 p-1.5 rounded-lg text-xs cursor-pointer transition-colors" title="Supprimer cette visite">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="pt-1 flex flex-wrap gap-1.5">
+                            ${actionsBadges}
+                        </div>
+                        ${timeInfo}
+                    `;
+                    modalContent.appendChild(item);
+                });
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function deleteVisit(id) {
+            if (confirm("Voulez-vous vraiment supprimer cette intervention ?")) {
+                visits = visits.filter(v => v.id !== id);
+                try {
+                    localStorage.setItem('elevator_visits', JSON.stringify(visits));
+                } catch (err) {
+                    console.error("Erreur localStorage", err);
+                }
+                renderDashboard();
+                
+                const remainingDeviceVisits = visits.filter(v => v.appareil === currentOpenDeviceCode);
+                if (remainingDeviceVisits.length > 0) {
+                    openHistory(currentOpenDeviceCode);
+                } else {
+                    closeHistoryModal();
+                }
+            }
+        }
+
+        function closeHistoryModal() {
+            const modal = document.getElementById('history-modal');
+            if (modal) modal.classList.add('hidden');
+            currentOpenDeviceCode = null;
+        }
+
+        function saveVisit(e) {
+            e.preventDefault();
+            
+            const appareilInput = document.getElementById('appareil');
+            const nomResidenceInput = document.getElementById('nomResidence');
+            const residenceSelect = document.getElementById('residence');
+            const dateVisiteInput = document.getElementById('dateVisite');
+            const heureDebutInput = document.getElementById('heureDebut');
+            const heureFinInput = document.getElementById('heureFin');
+
+            if (!appareilInput || !dateVisiteInput) return;
+
+            const appareil = appareilInput.value.trim();
+            const nomResidence = nomResidenceInput ? nomResidenceInput.value.trim() : '';
+            const residence = residenceSelect ? residenceSelect.value : 'Privée';
+            const dateVisite = dateVisiteInput.value;
+            const heureDebut = heureDebutInput ? heureDebutInput.value : '';
+            const heureFin = heureFinInput ? heureFinInput.value : '';
+            
+            const checkboxes = document.querySelectorAll('.type-cb:checked');
+            const selectedTypes = Array.from(checkboxes).map(cb => cb.value);
+
+            if (selectedTypes.length === 0) {
+                alert("Veuillez cocher au moins un type d'intervention.");
+                return;
+            }
+
+            const isMaintenanceOrAnnual = Array.from(checkboxes).some(cb => cb.classList.contains('trigger-count'));
+
+            visits.unshift({
+                id: Date.now(),
+                appareil,
+                nomResidence,
+                residence,
+                dateVisite,
+                heureDebut,
+                heureFin,
+                types: selectedTypes,
+                resetsCountdown: isMaintenanceOrAnnual
+            });
+
+            try {
+                localStorage.setItem('elevator_visits', JSON.stringify(visits));
+            } catch (err) {
+                console.error("Erreur localStorage", err);
+            }
+
+            const visitForm = document.getElementById('visit-form');
+            if (visitForm) visitForm.reset();
+            if (dateVisiteInput) dateVisiteInput.valueAsDate = new Date();
+            
+            toggleView('dashboard');
+        }
+
+        function renderDashboard() {
+            const container = document.getElementById('devices-list');
+            const searchInput = document.getElementById('search-input');
+            const search = searchInput ? searchInput.value.toLowerCase() : '';
+            if (!container) return;
+            
+            container.innerHTML = '';
+
+            let countLate = 0;
+            let countWarning = 0;
+            let countOk = 0;
+
+            const devices = {};
+            visits.forEach(v => {
+                if (!devices[v.appareil]) devices[v.appareil] = [];
+                devices[v.appareil].push(v);
+            });
+
+            const now = new Date();
+            now.setHours(0,0,0,0);
+
+            const processedDevices = [];
+            for (const [code, history] of Object.entries(devices)) {
+                const latest = history[0];
+                const lastMaint = history.find(h => h.resetsCountdown);
+                let status = 'ok';
+                let limitDate = null;
+                let diffDays = 0;
+
+                if (lastMaint) {
+                    const d = new Date(lastMaint.dateVisite);
+                    limitDate = new Date(d);
+                    
+                    if (latest.residence === 'SHLMR') {
+                        limitDate.setDate(limitDate.getDate() + 30);
+                    } else {
+                        limitDate.setDate(limitDate.getDate() + 42);
+                    }
+
+                    diffDays = Math.ceil((limitDate - now) / (1000 * 60 * 60 * 24));
+                    if (diffDays < 0) {
+                        status = 'late';
+                    } else if (diffDays <= 7) {
+                        status = 'warning';
+                    } else {
+                        status = 'ok';
+                    }
+                }
+
+                if (status === 'late') countLate++;
+                else if (status === 'warning') countWarning++;
+                else countOk++;
+
+                processedDevices.push({ code, history, latest, lastMaint, status, limitDate, diffDays });
+            }
+
+            const elLate = document.getElementById('count-late');
+            const elWarn = document.getElementById('count-warning');
+            const elOk = document.getElementById('count-ok');
+
+            if (elLate) elLate.innerText = countLate;
+            if (elWarn) elWarn.innerText = countWarning;
+            if (elOk) elOk.innerText = countOk;
+
+            if (visits.length === 0) {
+                container.innerHTML = '<div class="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl text-center text-slate-400 text-sm">Aucune intervention enregistrée.<br>Appuyez sur "+ Visite".</div>';
+                return;
+            }
+
+            let displayedCount = 0;
+
+            processedDevices.forEach(dev => {
+                const { code, history, latest, lastMaint, status, limitDate, diffDays } = dev;
+                const residenceDisplay = latest.nomResidence ? `${latest.nomResidence} (${latest.residence})` : latest.residence;
+
+                if (search && !code.toLowerCase().includes(search) && !residenceDisplay.toLowerCase().includes(search)) return;
+                if (currentFilter !== 'all' && currentFilter !== status) return;
+
+                displayedCount++;
+
+                let borderStatusClass = 'border-l-blue-500';
+                let statusBadge = '';
+
+                if (status === 'late') {
+                    borderStatusClass = 'border-l-red-500';
+                    statusBadge = `<span class="bg-red-950/80 text-red-400 border border-red-800/60 text-[10px] px-2 py-0.5 rounded-full font-bold">En retard (${Math.abs(diffDays)}j de retard)</span>`;
+                } else if (status === 'warning') {
+                    borderStatusClass = 'border-l-amber-500';
+                    statusBadge = `<span class="bg-amber-950/80 text-amber-400 border border-amber-800/60 text-[10px] px-2 py-0.5 rounded-full font-bold">Échéance proche (${diffDays}j restants)</span>`;
+                } else {
+                    borderStatusClass = 'border-l-emerald-500';
+                    statusBadge = `<span class="bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 text-[10px] px-2 py-0.5 rounded-full font-bold">À jour (${diffDays}j restants)</span>`;
+                }
+
+                let dueDateStr = 'Pas de contrôle récent';
+                let dernierControleStr = 'Inconnu';
+
+                if (lastMaint) {
+                    dernierControleStr = new Date(lastMaint.dateVisite).toLocaleDateString('fr-FR');
+                    dueDateStr = limitDate.toLocaleDateString('fr-FR');
+                }
+
+                const card = document.createElement('div');
+                card.className = `bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 shadow-lg border-l-4 ${borderStatusClass}`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-lg text-white">${code}</span>
+                                ${statusBadge}
+                            </div>
+                            ${latest.nomResidence ? `<p class="text-xs font-semibold text-slate-300 flex items-center gap-1.5"><i class="fa-solid fa-location-dot text-blue-500"></i> ${latest.nomResidence}</p>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-800/60 text-xs text-slate-400">
+                        <div>
+                            <span class="block text-[10px] uppercase text-slate-500">Dernier contrôle</span>
+                            <strong class="text-slate-200">${dernierControleStr}</strong>
+                        </div>
+                        <div>
+                            <span class="block text-[10px] uppercase text-slate-500">Limite ${latest.residence === 'SHLMR' ? '30 jours' : '6 semaines'}</span>
+                            <strong class="text-slate-200">${dueDateStr}</strong>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-t border-slate-800/60 flex justify-between items-center text-xs">
+                        <button type="button" onclick="openHistory('${code}')" class="text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate text-[10px] text-blue-400"></i> <span class="underline">${history.length} visite${history.length > 1 ? 's' : ''} enregistrée${history.length > 1 ? 's' : ''}</span>
+                        </button>
+                        <button type="button" onclick="quickUpdate('${code}', '${latest.residence}', '${(latest.nomResidence || '').replace(/'/g, "\\'")}')" class="bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-blue-300 font-semibold px-3 py-1.5 rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-circle-plus text-xs"></i> Mettre à jour
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            if (displayedCount === 0 && visits.length > 0) {
+                container.innerHTML = '<div class="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl text-center text-slate-400 text-sm">Aucun appareil ne correspond à ce filtre ou à cette recherche.</div>';
+            }
+        }
+
+        async function syncToGoogleSheets() {
+            const btn = document.getElementById('btn-sync');
+            const statusDiv = document.getElementById('sync-status');
+
+            if (visits.length === 0) {
+                alert("Aucune donnée à synchroniser pour le moment.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-sm"></i> <span>Envoi en cours...</span>';
+            statusDiv.classList.add('hidden');
+
+            try {
+                await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(visits)
+                });
+
+                statusDiv.className = "text-center text-xs p-2 rounded-xl bg-emerald-950/80 border border-emerald-800/60 text-emerald-400 font-semibold block";
+                statusDiv.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Données synchronisées avec succès !';
+            } catch (err) {
+                statusDiv.className = "text-center text-xs p-2 rounded-xl bg-red-950/80 border border-red-800/60 text-red-400 font-semibold block";
+                statusDiv.innerHTML = '<i class="fa-solid fa-xmark mr-1"></i> Erreur lors de l\'envoi vers Google Sheets.';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-file-excel text-sm"></i> <span>Synchroniser avec Google Sheets</span>';
+            }
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(visits));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `tech_ascenseur_backup_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedVisits = JSON.parse(e.target.result);
+                    if (Array.isArray(importedVisits)) {
+                        if (confirm(`Voulez-vous importer ${importedVisits.length} intervention(s) ? Cela remplacera vos données actuelles.`)) {
+                            visits = importedVisits;
+                            localStorage.setItem('elevator_visits', JSON.stringify(visits));
+                            renderDashboard();
+                            toggleView('dashboard');
+                            alert("Sauvegarde importée avec succès !");
+                        }
+                    } else {
+                        alert("Format de fichier invalide.");
+                    }
+                } catch (err) {
+                    alert("Erreur lors de la lecture du fichier JSON.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearData() {
+            if (confirm("Voulez-vous vraiment effacer toutes les interventions enregistrées ?")) {
+                localStorage.removeItem('elevator_visits');
+                visits = [];
+                renderDashboard();
+                toggleView('dashboard');
+            }
+        }
+    </script>
+</body>
+</html>
